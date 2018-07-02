@@ -63,14 +63,23 @@
       draggable: {type: Boolean, default: false},
       klass: String
     },
-    data() {
+    data () {
       return {
         draggedItem: undefined,
         draggedElm: undefined
       }
     },
     computed: {
-      classes() {
+      rootNode () {
+        return this.initializeDataItem({
+            id: '#',
+            [this.valueFieldName]: '#',
+            [this.childrenFieldName]: this.data,
+            [this.textFieldName]: 'root node'
+          }
+        )
+      },
+      classes () {
         return [
           {'tree': true},
           {'tree-default': !this.size},
@@ -79,7 +88,7 @@
           {[this.klass]: !!this.klass}
         ]
       },
-      containerClasses() {
+      containerClasses () {
         return [
           {'tree-container-ul': true},
           {'tree-children': true},
@@ -87,7 +96,7 @@
           {'tree-no-dots': !!this.noDots}
         ]
       },
-      sizeHeight() {
+      sizeHeight () {
         switch (this.size) {
           case 'large':
             return ITEM_HEIGHT_LARGE
@@ -99,7 +108,7 @@
       }
     },
     methods: {
-      findNode(tree, pred) {
+      findNode (tree, pred) {
         for (let node of tree) {
           if (pred(node)) {
             return node
@@ -114,7 +123,7 @@
         }
         return false
       },
-      getNode(node) {
+      getNode (node) {
         if (node === '#') {
           return {
             id: '#',
@@ -124,22 +133,21 @@
           }
         }
         return this.findNode(this.data, n => n.id === node)
-
       },
-      initializeData(items) {
+      initializeData (items) {
         if (items && items.length > 0) {
           for (let i in items) {
-            items[i] = this.initializeDataItem(items[i]);
-            this.initializeData(items[i][this.childrenFieldName], items[i])
+            items[i] = this.initializeDataItem(items[i])
+            this.initializeData(items[i][this.childrenFieldName])
           }
         }
       },
-      initializeDataItem(item, parentNode) {
-        function Model(item,
-                       textFieldName,
-                       valueFieldName,
-                       childrenFieldName,
-                       collapse) {
+      initializeDataItem (item) {
+        function Model (item,
+                        textFieldName,
+                        valueFieldName,
+                        childrenFieldName,
+                        collapse) {
           this.id = item.id || ITEM_ID++
           this[textFieldName] = item[textFieldName] || ''
           this[valueFieldName] = item[valueFieldName] || item[textFieldName]
@@ -155,17 +163,11 @@
           item, this.textFieldName, this.valueFieldName,
           this.childrenFieldName, this.collapse), item)
         let self = this
-        let _parentNode = parentNode || '#';
-        node.getParentNode = function () {
-          if (_parentNode === '#') {
-             return self.initializeDataItem({
-              id: '#',
-              [self.valueFieldName]: '#',
-              [self.childrenFieldName]: self.data,
-              [self.textFieldName]: 'root node'
-            })
-          }
-          return _parentNode
+        node.getText = function () {
+          return node[self.textFieldName]
+        }
+        node.getValue = function () {
+          return node[self.valueFieldName]
         }
         node.getChildren = function () {
           if (!node[self.childrenFieldName]) {
@@ -173,18 +175,16 @@
           }
           return node[self.childrenFieldName]
         }
-        node.addBefore = function (data) {
-          const parentNode = node.getParentNode()
-          let newItem = self.initializeDataItem(data, parentNode)
-          let index = parentNode.getChildren().findIndex(t => t.id === node.id)
-          parentNode.getChildren().splice(index, 0, newItem)
+        node.addBefore = function (data, parentItem) {
+          let newItem = self.initializeDataItem(data)
+          let index = parentItem.findIndex(t => t.id === node.id)
+          parentItem.splice(index, 0, newItem)
           return newItem
         }
-        node.addAfter = function (data) {
-          const parentNode = node.getParentNode()
-          let newItem = self.initializeDataItem(data, parentNode)
-          let index = parentNode.getChildren().findIndex(t => t.id === node.id)
-          parentNode.getChildren().splice(index, 0, newItem)
+        node.addAfter = function (data, parentItem) {
+          let newItem = self.initializeDataItem(data)
+          let index = parentItem.findIndex(t => t.id === node.id) + 1
+          parentItem.splice(index, 0, newItem)
           return newItem
         }
         node.addChild = function (data) {
@@ -206,14 +206,14 @@
         }
         return node
       },
-      initializeLoading() {
-        var item = {}
-        item[this.textFieldName] = this.loadingText
-        item.disabled = true
-        item.loading = true
-        return this.initializeDataItem(item)
+      initializeLoading () {
+        return this.initializeDataItem({
+          disabled: true,
+          loading: true,
+          [this.textFieldName]: this.loadingText,
+        })
       },
-      handleRecursionNodeChilds(node, func) {
+      handleRecursionNodeChilds (node, func) {
         if (func(node) !== false) {
           if (node.$children && node.$children.length > 0) {
             for (let childNode of node.$children) {
@@ -224,7 +224,7 @@
           }
         }
       },
-      handleRecursionNodeChildren(node, func) {
+      handleRecursionNodeChildren (node, func) {
         if (func(node) !== false) {
           if (node[this.childrenFieldName] && node[this.childrenFieldName].length > 0) {
             for (let childNode of node[this.childrenFieldName]) {
@@ -233,7 +233,7 @@
           }
         }
       },
-      onItemClick(oriNode, oriItem, e) {
+      onItemClick (oriNode, oriItem, e) {
         if (this.multiple) {
           if (this.allowBatch) {
             this.handleBatchSelectItems(oriNode, oriItem)
@@ -243,25 +243,25 @@
         }
         this.$emit('item-click', oriNode, oriItem, e)
       },
-      handleSingleSelectItems(oriNode, oriItem) {
+      handleSingleSelectItems (oriNode, oriItem) {
         this.handleRecursionNodeChilds(this, node => {
           if (node.model) node.model.selected = false
         })
         oriNode.model.selected = true
       },
-      handleBatchSelectItems(oriNode, oriItem) {
+      handleBatchSelectItems (oriNode, oriItem) {
         this.handleRecursionNodeChilds(oriNode, node => {
           if (node.model.disabled) return
           node.model.selected = oriNode.model.selected
         })
       },
-      onItemToggle(oriNode, oriItem, e) {
+      onItemToggle (oriNode, oriItem, e) {
         if (oriNode.model.opened) {
           this.handleAsyncLoad(oriNode.model[this.childrenFieldName], oriNode, oriItem)
         }
         this.$emit('item-toggle', oriNode, oriItem, e)
       },
-      handleAsyncLoad(oriParent, oriNode, oriItem) {
+      handleAsyncLoad (oriParent, oriNode, oriItem) {
         var self = this
         if (this.async) {
           if (oriParent[0].loading) {
@@ -269,7 +269,7 @@
               if (data.length > 0) {
                 for (let i in data) {
                   if (!data[i].isLeaf) {
-                    if (typeof data[i][self.childrenFieldName] !== "object") {
+                    if (typeof data[i][self.childrenFieldName] !== 'object') {
                       data[i][self.childrenFieldName] = [self.initializeLoading()]
                     }
                   }
@@ -283,10 +283,10 @@
           }
         }
       },
-      onItemDragStart(e, oriNode, oriItem) {
+      onItemDragStart (e, oriNode, oriItem) {
         if (!this.draggable || oriItem.dragDisabled)
           return false
-        e.dataTransfer.effectAllowed = "move"
+        e.dataTransfer.effectAllowed = 'move'
         e.dataTransfer.setData('text', null)
         this.draggedElm = e.target
         this.draggedItem = {
@@ -295,49 +295,51 @@
           index: oriNode.parentItem.findIndex(t => t.id === oriItem.id)
         }
 
-        this.$emit("item-drag-start", oriNode, oriItem, e)
+        this.$emit('item-drag-start', oriNode, oriItem, e)
       },
-      onItemDragEnd(e, oriNode, oriItem) {
+      onItemDragEnd (e, oriNode, oriItem) {
         this.draggedItem = undefined
         this.draggedElm = undefined
-        this.$emit("item-drag-end", oriNode, oriItem, e)
+        this.$emit('item-drag-end', oriNode, oriItem, e)
       },
-      onItemDrop(e, oriNode, oriItem) {
+      onItemDrop (e, oriNode, oriItem) {
         if (!this.draggable || !!oriItem.dropDisabled)
           return false
-        this.$emit("item-drop-before", oriNode, oriItem, !this.draggedItem ? undefined : this.draggedItem.item, e)
+        this.$emit('item-drop-before', oriNode, oriItem, !this.draggedItem ? undefined : this.draggedItem.item, e)
         if (!this.draggedElm || this.draggedElm === e.target || this.draggedElm.contains(e.target)) {
           return
         }
         if (!this.draggedItem) {
           return
         }
-        if (this.draggedItem.parentItem === oriItem[this.childrenFieldName]
-          || this.draggedItem.item === oriItem
-          || (oriItem[this.childrenFieldName] && oriItem[this.childrenFieldName].findIndex(t => t.id === this.draggedItem.item.id) !== -1)) {
-          return;
+        if (this.draggedItem.item === oriNode) {
+          return
         }
-        if (e.position === 'before') {
-          oriItem.addBefore(this.draggedItem.item)
-        } else {
-          if (e.position === 'after') {
-            oriItem.addAfter(this.draggedItem.item)
-          } else {
-            oriItem[this.childrenFieldName].addChild(this.draggedItem.item)
-          }
+        const isSamePlace = (this.draggedItem.parentItem === oriNode.parentItem
+          || (oriNode.parentItem.findIndex(t => t.id === this.draggedItem.item.id) !== -1))
+
+        this.draggedItem.parentItem.splice(this.draggedItem.index, 1)
+        switch (e.position) {
+          case 'before':
+            oriItem.addBefore(this.draggedItem.item, oriNode.parentItem)
+            break
+          case 'after':
+            oriItem.addAfter(this.draggedItem.item, oriNode.parentItem)
+            break
+          default:
+            oriItem.addChild(this.draggedItem.item)
         }
         oriItem.opened = true
         var draggedItem = this.draggedItem
         this.$nextTick(() => {
-          draggedItem.parentItem.splice(draggedItem.index, 1)
         })
-        this.$emit("item-drop", oriNode, oriItem, draggedItem.item, e)
+        this.$emit('item-drop', oriNode, oriItem, draggedItem.item, e)
       }
     },
-    created() {
+    created () {
       this.initializeData(this.data)
     },
-    mounted() {
+    mounted () {
       if (this.async) {
         this.$set(this.data, 0, this.initializeLoading())
         this.handleAsyncLoad(this.data, this)
