@@ -331,8 +331,6 @@
         }
         oriItem.opened = true
         var draggedItem = this.draggedItem
-        this.$nextTick(() => {
-        })
         this.$emit('item-drop', oriNode, oriItem, draggedItem.item, e)
       }
     },

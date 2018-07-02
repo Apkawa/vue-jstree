@@ -206,7 +206,9 @@
           if (this.model.opened) {
             length = this.$children.length
             for (let children of this.$children) {
-              childHeight += children.maxHeight
+              if (children.$options._componentTag === 'tree-item') {
+                childHeight += children.maxHeight
+              }
             }
           }
           this.maxHeight = length * this.height + childHeight
