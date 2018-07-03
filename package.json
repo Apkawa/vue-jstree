@@ -1,6 +1,6 @@
 {
-  "name": "vue-jstree",
-  "version": "2.2",
+  "name": "@apkawa/vue-jstree",
+  "version": "2.2.0",
   "description": "a tree plugin for vue2",
   "keywords": [
     "vue2",
@@ -20,7 +20,7 @@
     "gh-pages:build": "cross-env NODE_ENV=production webpack --config webpack.examples.config.js --progress --hide-modules",
     "gh-pages:publish": "gh-pages-deploy",
     "clean-source": "rimraf README.md src webroot package.json",
-    "prepublish": "npm publish",
+    "prepublish": "npm build",
     "lint": "eslint src"
   },
   "dependencies": {},
